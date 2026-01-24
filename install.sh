@@ -36,11 +36,23 @@ if ! pip install . pyinstaller; then
 fi
 
 echo "Building standalone binary with PyInstaller..."
+
+# Create a temporary entry point to ensure package imports work correctly
+cat > build_entry.py <<EOF
+import sys
+from svg_tree.main import main
+
+if __name__ == "__main__":
+    sys.exit(main())
+EOF
+
 # --clean: Clean PyInstaller cache
 # --noconfirm: Don't ask to overwrite
 # --onefile: Single executable
 # --add-data: Bundle the default config
-pyinstaller --clean --noconfirm --onefile --add-data "default-theme.toml:." src/svg_tree/main.py --name svgtree
+pyinstaller --clean --noconfirm --onefile --add-data "default-theme.toml:." build_entry.py --name svgtree
+
+rm build_entry.py
 
 echo "Installing binary..."
 BIN_DIR="${XDG_BIN_HOME:-$HOME/.local/bin}"
