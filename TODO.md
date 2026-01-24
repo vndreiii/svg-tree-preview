@@ -13,9 +13,17 @@
     - Color-code files based on their git status (modified, added, untracked).
     - Add status icons next to files (e.g., `M`, `A`, `?`).
 
-- [ ] **Interactive SVG**
+- [x] **Interactive SVG**
     - Make folder nodes clickable (collapsible/expandable) using embedded JavaScript in the SVG.
-    - Add hover effects for file details (size, permissions).
+    - *Note: Pure SVG interactivity is complex (manual reflow). Future interactive features should prioritize HTML output.*
+
+- [ ] **HTML Output (`--html`)**
+    - Generate a self-contained HTML file instead of (or in addition to) SVG.
+    - **Benefits**:
+        - CSS handles layout reflow automatically (no manual Y calculation).
+        - Richer file previews (modals, syntax highlighting libraries).
+        - Search/Filter functionality.
+    - **Implementation**: Embed SVG icons, use `<ul>`/`<li>` structure for tree, and simple JS for toggling classes.
 
 - [ ] **Multiple Output Formats**
     - Add JSON export (`--json`) for use in other tools.

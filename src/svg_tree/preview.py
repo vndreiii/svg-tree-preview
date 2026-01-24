@@ -1,15 +1,21 @@
 import os
+import html
 import base64
 import mimetypes
 import svgwrite
 from PIL import Image
 from pygments import highlight
 from pygments.lexers import get_lexer_for_filename, TextLexer
+from pygments.formatters import HtmlFormatter
 from pygments.styles import get_style_by_name
 
 # Register extra mime types
 mimetypes.add_type("image/jxl", ".jxl")
 mimetypes.add_type("image/webp", ".webp")
+mimetypes.add_type("video/mp4", ".mp4")
+mimetypes.add_type("video/webm", ".webm")
+mimetypes.add_type("audio/mpeg", ".mp3")
+mimetypes.add_type("audio/wav", ".wav")
 
 # Configuration for previews
 PREVIEW_WIDTH = 400 # Max container width
@@ -17,83 +23,158 @@ CODE_FONT_SIZE = 12
 LINE_HEIGHT = 16
 MAX_LINES = 20
 
+def is_binary(file_path):
+    """Check if file is binary by looking for null bytes."""
+    try:
+        with open(file_path, 'rb') as f:
+            chunk = f.read(8192)
+            return b'\0' in chunk
+    except:
+        return True
+
+def _read_b64(file_path):
+    with open(file_path, "rb") as f:
+        return base64.b64encode(f.read()).decode("utf-8")
+
 def get_file_content_preview(file_path: str) -> svgwrite.container.Group:
     """
     Generates an SVG Group containing the preview of the file.
     """
     mime_type, _ = mimetypes.guess_type(file_path)
+    ext = os.path.splitext(file_path)[1].lower()
     
     # 1. Image Preview
-    # Check common image types
-    if mime_type and (mime_type.startswith('image/') or file_path.lower().endswith(('.jxl', '.webp'))):
+    if mime_type and (mime_type.startswith('image/') or ext in ('.jxl', '.webp')):
         return _generate_image_preview(file_path)
+        
+    # 2. Treat as Code (Force .ts to code)
+    if ext == '.ts':
+        return _generate_code_preview(file_path)
+
+    # 3. Audio/Video (Placeholder for SVG)
+    if mime_type and (mime_type.startswith('video/') or mime_type.startswith('audio/')):
+        return _generate_placeholder_preview(file_path, "Media File")
+
+    # 4. Binary Check
+    if is_binary(file_path):
+        return _generate_placeholder_preview(file_path, "Binary File")
     
-    # 2. Code/Text Preview (Fallback)
+    # 5. Code/Text Preview
     return _generate_code_preview(file_path)
+
+def get_html_preview(file_path: str) -> str:
+    """
+    Generates an HTML snippet previewing the file.
+    """
+    mime_type, _ = mimetypes.guess_type(file_path)
+    ext = os.path.splitext(file_path)[1].lower()
+    
+    try:
+        # 1. Image
+        if mime_type and (mime_type.startswith('image/') or ext in ('.jxl', '.webp')):
+            data = _read_b64(file_path)
+            if not mime_type: mime_type = "image/png"
+            return f'<div class="preview-image"><img src="data:{mime_type};base64,{data}" style="max-width: 100%; max-height: 300px; border-radius: 5px;"></div>'
+
+        # 2. Force .ts to Code
+        if ext == '.ts':
+            pass # Continue to code section below
+        
+        # 3. Video
+        elif mime_type and mime_type.startswith('video/'):
+            data = _read_b64(file_path)
+            return f'<div class="preview-media"><video controls src="data:{mime_type};base64,{data}" style="max-width: 100%; max-height: 300px;"></video></div>'
+
+        # 4. Audio
+        elif mime_type and mime_type.startswith('audio/'):
+            data = _read_b64(file_path)
+            return f'<div class="preview-media"><audio controls src="data:{mime_type};base64,{data}"></audio></div>'
+
+        # 5. Binary Check
+        elif is_binary(file_path):
+            return f'<div class="preview-error">Binary File ({os.path.getsize(file_path)} bytes)</div>'
+
+        # 6. Code
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            code = "".join(f.readlines()[:MAX_LINES])
+            
+        try:
+            lexer = get_lexer_for_filename(file_path)
+        except:
+            lexer = TextLexer()
+            
+        formatter = HtmlFormatter(style='monokai', noclasses=True, wrapcode=True)
+        return f'<div class="preview-code">{highlight(code, lexer, formatter)}</div>'
+        
+    except Exception as e:
+        return f'<div class="preview-error">Error: {html.escape(str(e))}</div>'
+
+def _generate_placeholder_preview(file_path: str, text: str) -> svgwrite.container.Group:
+    group = svgwrite.container.Group()
+    font_size = 12
+    char_width = 8
+    padding = 10
+    box_w = (len(text) * char_width) + (padding * 2.5)
+    box_h = 30
+    
+    rect = svgwrite.shapes.Rect(size=(box_w, box_h), fill="#21252b", stroke="#3e4451", rx=4, ry=4)
+    rect['width'] = box_w
+    rect['height'] = box_h
+    group.add(rect)
+    
+    txt = svgwrite.text.Text(text, insert=(padding, 18), fill="#abb2bf", font_family="monospace", font_size=font_size)
+    group.add(txt)
+    return group
 
 def _generate_image_preview(file_path: str) -> svgwrite.container.Group:
     group = svgwrite.container.Group()
     try:
-        # Get actual dimensions using Pillow
-        # For SVGs, Pillow might fail or requires librsvg/cairo linkage. 
-        # We try/except this specifically.
         try:
             with Image.open(file_path) as img:
                 orig_w, orig_h = img.size
         except Exception:
-            # Fallback for SVGs or weird formats
             orig_w, orig_h = 100, 100
             
-        # Calculate scale to fit in box
         max_w, max_h = 350, 250
-        ratio = min(1.0, min(max_w / orig_w, max_h / orig_h)) # Scale down only
+        ratio = min(1.0, min(max_w / orig_w, max_h / orig_h))
         
         new_w = int(orig_w * ratio)
         new_h = int(orig_h * ratio)
         
-        # Read data for embedding
-        with open(file_path, "rb") as f:
-            data = base64.b64encode(f.read()).decode("utf-8")
+        data = _read_b64(file_path)
         
         mime_type, _ = mimetypes.guess_type(file_path)
         if not mime_type: 
-            mime_type = "image/png" # Fallback
+            mime_type = "image/png"
             
         uri = f"data:{mime_type};base64,{data}"
         
-        # Container Box (slightly larger than image)
         padding = 10
         box_w = new_w + (padding * 2)
         box_h = new_h + (padding * 2)
         
-        # Draw background
         rect = svgwrite.shapes.Rect(size=(box_w, box_h), fill="#21252b", stroke="#3e4451", rx=4, ry=4)
         group.add(rect)
         
-        # Draw image
         img_node = svgwrite.image.Image(href=uri, insert=(padding, padding), size=(new_w, new_h))
         group.add(img_node)
         
     except Exception as e:
-        group.add(svgwrite.text.Text(f"Error previewing image: {e}", fill="red", font_size=10, insert=(0, 10)))
-        # Add a dummy rect so render.py doesn't crash on height check
-        # Fix: Access internal list to insert at 0
+        group.add(svgwrite.text.Text(f"Error: {e}", fill="red", font_size=10, insert=(0, 10)))
         rect = svgwrite.shapes.Rect(size=(200, 20), fill="none")
-        rect['height'] = 20 # Explicitly set for reader
+        rect['height'] = 20
         group.elements.insert(0, rect)
         
     return group
 
 def _generate_code_preview(file_path: str) -> svgwrite.container.Group:
     group = svgwrite.container.Group()
-    
-    # Background Box
     bg = svgwrite.shapes.Rect(fill="#282c34", stroke="#3e4451", rx=5, ry=5)
     group.add(bg)
     
     try:
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-            code = "".join(f.readlines()[:MAX_LINES]) # Limit lines
+            code = "".join(f.readlines()[:MAX_LINES])
             
         try:
             lexer = get_lexer_for_filename(file_path)
@@ -102,10 +183,7 @@ def _generate_code_preview(file_path: str) -> svgwrite.container.Group:
             
         y = LINE_HEIGHT
         x = 10
-        
-        # Style (Monokai-ish)
         style = get_style_by_name('monokai')
-        
         text_group = svgwrite.container.Group()
         
         lines = code.splitlines()
@@ -113,9 +191,6 @@ def _generate_code_preview(file_path: str) -> svgwrite.container.Group:
         
         for i, line in enumerate(lines):
             tokens = lexer.get_tokens(line)
-            
-            # Create one text element per line
-            # We rely on SVG to handle horizontal spacing via tspans
             text_elem = svgwrite.text.Text("", insert=(x, y), 
                                            font_family="monospace", font_size=CODE_FONT_SIZE)
             text_elem['xml:space'] = 'preserve'
@@ -127,40 +202,27 @@ def _generate_code_preview(file_path: str) -> svgwrite.container.Group:
                 
             text_group.add(text_elem)
             
-            # Approximate width calculation for background box only
-            # Using 0.7 as a safer multiplier for monospace
             line_len = len(line) * (CODE_FONT_SIZE * 0.7)
             if line_len > max_width:
                 max_width = line_len
             
             y += LINE_HEIGHT
             
-        # Update background size with padding
         box_w = max(max_width + 30, 200)
         box_h = y + 10
         bg['width'] = box_w
         bg['height'] = box_h
         
-        # Clipping: Ensure text doesn't overflow background
-        # We need a unique ID for the clip path
         clip_id = f"clip_{os.urandom(4).hex()}"
-        
-        # We need to add the clip path definition to the group's defs?
-        # svgwrite Element.defs is not always available on Groups if not attached to Drawing?
-        # But we can add it to the group itself if we treat it as a container.
-        # Actually, adding 'defs' to a Group works in svgwrite.
-        
         clip = svgwrite.masking.ClipPath(id=clip_id)
         clip.add(svgwrite.shapes.Rect(size=(box_w, box_h), rx=5, ry=5))
-        # Add clip definition directly to the group (SVG allows this)
         group.add(clip)
         
         text_group['clip-path'] = f"url(#{clip_id})"
-        
         group.add(text_group)
         
     except Exception as e:
-        group.add(svgwrite.text.Text(f"Error reading file: {e}", fill="red", insert=(10, 20)))
+        group.add(svgwrite.text.Text(f"Error: {e}", fill="red", insert=(10, 20)))
         bg['width'] = 200
         bg['height'] = 40
         

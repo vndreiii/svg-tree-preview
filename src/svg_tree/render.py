@@ -54,9 +54,8 @@ def generate_svg(root_path: str, output_path: str, tree_nodes: List[TreeEntry], 
 
     # --- Pre-calculation Pass ---
     visual_rows = list(flatten_tree(tree_nodes))
-    render_plan: List[Tuple[TreeEntry, Any, float]] = [] # node, preview_group, height_consumed
+    render_plan: List[Tuple[TreeEntry, Any, float]] = [] 
     
-    content_height = row_height # Root node
     max_len = 0
     root_name = os.path.basename(os.path.abspath(root_path)) or root_path
     max_len = max(max_len, len(root_name) * 10 + 30)
@@ -65,40 +64,31 @@ def generate_svg(root_path: str, output_path: str, tree_nodes: List[TreeEntry], 
         preview_group = None
         extra_height = 0
         
-        # Check for preview match
         is_match = False
         if not node.is_dir and preview_spec:
-            # Check both name and relative path? 
-            # pathspec normally checks paths.
-            # But users might want "*.py". pathspec handles wildcards well.
-            # Let's check name for convenience + path
             if preview_spec.match_file(node.name) or preview_spec.match_file(node.path):
                 is_match = True
         
         if is_match:
             try:
                 preview_group = get_file_content_preview(node.path)
-                # Hacky: access the 'height' of the background rect (element 0)
-                # We assume preview.py structure: Group -> [Rect, ...]
                 bg_rect = preview_group.elements[0]
-                extra_height = float(bg_rect['height']) + 10 # + Margin
+                extra_height = float(bg_rect['height']) + 10 
             except Exception as e:
                 print(f"Preview generation failed for {node.name}: {e}")
                 extra_height = 0
         
         render_plan.append((node, preview_group, extra_height))
-        content_height += row_height + extra_height
         
-        # Width calc
         w = (node.depth + 1) * indent_unit + (len(node.name) * 10) + 30
         if w > max_len:
             max_len = w
             
-    # Allow extra width for previews (approx 450px) if any exist
     if any(p[1] for p in render_plan):
         max_len = max(max_len + 450, max_len)
 
-    total_height = content_height + (padding * 2)
+    total_content_height = sum(row_height + p[2] for p in render_plan) + row_height # + root
+    total_height = total_content_height + (padding * 2)
     total_width = max_len + (padding * 2) + 100 
     
     dwg = svgwrite.Drawing(output_path, size=(total_width, total_height), profile='full')
@@ -142,104 +132,95 @@ def generate_svg(root_path: str, output_path: str, tree_nodes: List[TreeEntry], 
         .file {{ fill: {text_file_color}; }}
     """))
     
+    # --- Drawing ---
     y = padding + row_height / 2
     x_start = padding
     
-    # Draw Root Node
+    # Root Node
     root_icon_char, root_color = get_icon_and_color(root_name, True, theme)
     root_icon_path = get_glyph_path(font, root_icon_char)
     scale = 16 / 2048 
     
-    icon_group = dwg.g(transform=f"translate({x_start}, {y + 6}) scale({scale}, -{scale})")
-    icon_group.add(dwg.path(d=root_icon_path, fill=root_color))
-    dwg.add(icon_group)
-    dwg.add(dwg.text(f"{root_name}", insert=(x_start + 24, y), class_="folder"))
+    current_y_top = padding
+    root_grp = dwg.g(transform=f"translate(0, {current_y_top})")
     
-    y += row_height
+    # Fix: Center icon vertically in the row
+    rel_y = row_height / 2
+    icon_group = dwg.g(transform=f"translate({x_start}, {rel_y + 4}) scale({scale}, -{scale})")
+    icon_group.add(dwg.path(d=root_icon_path, fill=root_color))
+        
+    root_grp.add(icon_group)
+    root_grp.add(dwg.text(f"{root_name}", insert=(x_start + 24, rel_y), class_="folder"))
+    
+    dwg.add(root_grp)
+    current_y_top += row_height
 
-    for node, preview_group, extra_h in render_plan:
+    for i, (node, preview_group, extra_h) in enumerate(render_plan):
+        row_h = row_height + extra_h
+        
+        row_grp = dwg.g(transform=f"translate(0, {current_y_top})")
+        
+        rel_y = row_height / 2 
         x_base = x_start
         
-        # --- DRAW LINES ---
+        # Lines
         for d, was_last in enumerate(node.parent_is_last):
             if not was_last:
                 line_x = x_base + (d * indent_unit) + (indent_unit / 2) - 4
-                # Line height needs to cover the row + any extra preview height for THIS row
-                # Wait, vertical lines for PARENTS should extend through this node's preview space too?
-                # Yes. If a parent is open, its line goes down past my children.
-                # Here, we are drawing the line segment for THIS row.
-                # It should extend `row_height + extra_h`.
-                
-                segment_h = row_height + extra_h
-                dwg.add(dwg.line(
-                    start=(line_x, y - row_height/2), 
-                    end=(line_x, y - row_height/2 + segment_h), 
+                row_grp.add(dwg.line(
+                    start=(line_x, 0), 
+                    end=(line_x, row_h), 
                     stroke=line_color, stroke_width=1
                 ))
         
         current_indent_x = x_base + (node.depth * indent_unit) + (indent_unit / 2) - 4
-        dwg.add(dwg.line(
-            start=(current_indent_x, y),
-            end=(current_indent_x + 12, y),
+        
+        row_grp.add(dwg.line(
+            start=(current_indent_x, rel_y),
+            end=(current_indent_x + 12, rel_y),
             stroke=line_color, stroke_width=1
         ))
         
-        # Vertical connector for THIS node (up to parent)
-        dwg.add(dwg.line(
-            start=(current_indent_x, y - row_height/2),
-            end=(current_indent_x, y),
+        row_grp.add(dwg.line(
+            start=(current_indent_x, 0),
+            end=(current_indent_x, rel_y),
             stroke=line_color, stroke_width=1
         ))
-        
-        # If this node has children (it's a folder and not last), it might need a line going down?
-        # But `flatten_tree` order handles that by the next node drawing the "parent" line.
-        # However, if *I* have a preview (files only, usually), I don't have children.
-        # But if I am not the last child, I need to draw the vertical line for MYSELF extending down past my preview?
-        # No, that's handled by the `parent_is_last` logic of the *next* sibling?
-        # Actually, the logic above: `if not was_last` draws the parent lines.
-        # Does the current node need a line extending through its own preview?
-        # Only if it's not the last child.
-        # But `node.parent_is_last` lists *parents*. It doesn't include "am I last?".
-        # `node.is_last_child` tells us.
         
         if not node.is_last_child:
-             # Draw line extending down through my preview
-             segment_h = extra_h + (row_height / 2) # extend to bottom of row + preview?
-             # actually we need to reach the next row's top.
-             dwg.add(dwg.line(
-                start=(current_indent_x, y),
-                end=(current_indent_x, y + (row_height/2) + extra_h),
+             row_grp.add(dwg.line(
+                start=(current_indent_x, rel_y),
+                end=(current_indent_x, row_h),
                 stroke=line_color, stroke_width=1
              ))
 
+        # Icon
         icon_x = current_indent_x + 18
         icon_char, color = get_icon_and_color(node.name, node.is_dir, theme)
         icon_path = get_glyph_path(font, icon_char)
-        icon_group = dwg.g(transform=f"translate({icon_x}, {y + 6}) scale({scale}, -{scale})")
-        icon_group.add(dwg.path(d=icon_path, fill=color))
-        dwg.add(icon_group)
         
+        icon_sub = dwg.g(transform=f"translate({icon_x}, {rel_y + 4}) scale({scale}, -{scale})")
+        icon_sub.add(dwg.path(d=icon_path, fill=color))
+            
+        row_grp.add(icon_sub)
+        
+        # Text
         text_x = icon_x + 24
         text_cls = "folder" if node.is_dir else "file"
-        dwg.add(dwg.text(node.name, insert=(text_x, y), class_=text_cls))
+        row_grp.add(dwg.text(node.name, insert=(text_x, rel_y), class_=text_cls))
         
-        # --- DRAW PREVIEW ---
+        # Preview
         if preview_group:
-            # Position preview below file, indented
             preview_x = text_x + 20
-            preview_y = y + (row_height / 2) + 5
-            
-            # Create a transform group for positioning
+            preview_y = row_height # Start below text row
             container = dwg.g(transform=f"translate({preview_x}, {preview_y})")
             container.add(preview_group)
-            
-            # Optional: Connector line from file to preview
-            dwg.add(dwg.path(d=f"M {text_x + 10} {y + 10} L {text_x + 10} {preview_y + 10} L {preview_x} {preview_y + 10}",
+            row_grp.add(dwg.path(d=f"M {text_x + 10} {rel_y + 10} L {text_x + 10} {preview_y + 10} L {preview_x} {preview_y + 10}",
                              stroke=line_color, fill="none", stroke_width=1, stroke_dasharray="2,2"))
-            
-            dwg.add(container)
+            row_grp.add(container)
         
-        y += row_height + extra_h
+        dwg.add(row_grp)
+        current_y_top += row_h
         
     dwg.save()
     print(f"SVG tree generated at: {output_path}")
