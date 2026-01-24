@@ -14,6 +14,7 @@ def main():
     parser.add_argument("-d", "--depth", type=int, default=2, help="Max recursion depth (default: 2)")
     parser.add_argument("-e", "--exclude", help="Comma-separated exclude patterns (e.g. '*.jpg, .git')")
     parser.add_argument("-s", "--size", type=int, default=1, choices=range(1, 9), help="PNG Scale factor (1-8x)")
+    parser.add_argument("-p", "--file-preview", help="Preview content of files matching patterns (e.g. '*.py, README.md')")
     parser.add_argument("--png", action="store_true", help="Also save as PNG")
     parser.add_argument("--theme", help="Path to a custom TOML theme file")
     
@@ -29,7 +30,7 @@ def main():
         
     print(f"Scanning {root} (depth={args.depth})...")
     nodes = build_tree(root, args.depth, spec)
-    generate_svg(root, args.output, nodes, theme, save_png=args.png, png_scale=args.size)
+    generate_svg(root, args.output, nodes, theme, save_png=args.png, png_scale=args.size, preview_patterns=args.file_preview)
 
 if __name__ == "__main__":
     main()

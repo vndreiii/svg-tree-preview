@@ -13,6 +13,7 @@ dependencies = [
     "fonttools>=4.61.1",
     "requests>=2.32.5",
     "pyinstaller>=6.18.0",
+    "pygments>=2.19.2",
 ]
 readme = "README.md"
 requires-python = ">= 3.8"
