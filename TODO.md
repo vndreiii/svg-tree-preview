@@ -2,7 +2,7 @@
 
 ## Planned Features
 
-- [ ] **File Preview (`--file-preview <file>`)**
+- [x] **File Preview (`--file-preview <file>`)**
     - Show the full directory tree as usual.
     - Embed a preview window for the specified file inside the SVG/PNG.
     - Support syntax highlighting for code files (using `pygments`?).
@@ -25,6 +25,6 @@
     - Allow per-folder config overrides (e.g., `.svgtree.toml` inside subdirectories).
     - Add a `--dry-run` mode to preview what files would be scanned without generating images.
 
-- [ ] **Performance Optimization**
-    - Implement parallel scanning for very large directories.
-    - Cache font glyph extraction to speed up repeated runs.
+- [x] **Performance Optimization**
+    - [ ] Implement parallel scanning for very large directories.
+    - [x] Cache font glyph extraction to speed up repeated runs.

@@ -7,6 +7,8 @@ from fontTools.pens.svgPathPen import SVGPathPen
 
 from .consts import ICONS, EXT_MAP, FONT_URL
 
+_GLYPH_CACHE = {}
+
 def get_font_path() -> str:
     xdg_config = os.environ.get('XDG_CONFIG_HOME', os.path.join(os.path.expanduser('~'), '.config'))
     return os.path.join(xdg_config, 'svgtree', 'assets', 'SymbolsNerdFont-Regular.ttf')
@@ -27,16 +29,23 @@ def ensure_font_exists():
             sys.exit(1)
 
 def get_glyph_path(font: TTFont, unicode_char: str) -> str:
+    if unicode_char in _GLYPH_CACHE:
+        return _GLYPH_CACHE[unicode_char]
+
     cmap = font.getBestCmap()
     code_point = ord(unicode_char)
     if code_point not in cmap: return ""
     glyph_name = cmap[code_point]
     glyph_set = font.getGlyphSet()
     if glyph_name not in glyph_set: return ""
+    
     pen = SVGPathPen(glyph_set)
     glyph = glyph_set[glyph_name]
     glyph.draw(pen)
-    return pen.getCommands()
+    
+    path_data = pen.getCommands()
+    _GLYPH_CACHE[unicode_char] = path_data
+    return path_data
 
 def get_icon_and_color(name: str, is_dir: bool, theme: Dict[str, Any]) -> Tuple[str, str]:
     file_colors = theme.get('file_colors', {})
