@@ -1,6 +1,6 @@
 import os
 import pathspec
-from typing import List, Generator, Optional
+from typing import List, Generator, Optional, Callable
 
 class TreeEntry:
     def __init__(self, name: str, path: str, depth: int, is_dir: bool, is_last_child: bool = False, parent_is_last: List[bool] = None):
@@ -17,7 +17,8 @@ def build_tree(
     max_depth: int, 
     spec: Optional[pathspec.PathSpec],
     current_depth: int = 0,
-    parent_is_last: List[bool] = None
+    parent_is_last: List[bool] = None,
+    on_progress: Optional[Callable[[], None]] = None
 ) -> List[TreeEntry]:
     
     if current_depth > max_depth:
@@ -45,6 +46,9 @@ def build_tree(
         filtered_entries.append(entry)
 
     for i, entry in enumerate(filtered_entries):
+        if on_progress:
+            on_progress()
+
         is_last = (i == len(filtered_entries) - 1)
         is_dir = entry.is_dir()
         child_parent_is_last = parent_is_last + [is_last]
@@ -59,7 +63,7 @@ def build_tree(
         )
         
         if is_dir:
-            node.children = build_tree(entry.path, max_depth, spec, current_depth + 1, child_parent_is_last)
+            node.children = build_tree(entry.path, max_depth, spec, current_depth + 1, child_parent_is_last, on_progress=on_progress)
             
         entries.append(node)
         

@@ -2,6 +2,7 @@ import os
 import argparse
 import sys
 import pathspec
+import itertools
 
 from .config import load_theme
 from .core import build_tree
@@ -31,8 +32,26 @@ def main():
         patterns = [p.strip() for p in args.exclude.split(",")]
         spec = pathspec.PathSpec.from_lines('gitwildmatch', patterns)
         
-    print(f"Scanning {root} (depth={args.depth})...")
-    nodes = build_tree(root, args.depth, spec)
+    # Progress indicator setup
+    spinner_chars = itertools.cycle(['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'])
+    count = 0
+    
+    def on_progress():
+        nonlocal count
+        count += 1
+        if count % 5 == 0:  # Update every 5 items to reduce I/O overhead
+            sys.stdout.write(f"\rScanning {root} (depth={args.depth})... {next(spinner_chars)}  ({count} items found)")
+            sys.stdout.flush()
+
+    # Initial print
+    sys.stdout.write(f"Scanning {root} (depth={args.depth})... {next(spinner_chars)}")
+    sys.stdout.flush()
+    
+    nodes = build_tree(root, args.depth, spec, on_progress=on_progress)
+    
+    # Finalize progress bar
+    sys.stdout.write(f"\rScanning {root} (depth={args.depth})... Done! ({count} items found)   \n")
+    sys.stdout.flush()
     
     if args.html:
         out = args.output
