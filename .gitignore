@@ -1,0 +1,59 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Installer / Build
+.install/
+svgtree.spec
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Local Config / Assets
+# We generally want to ignore local assets if they are downloaded
+# But we might want to keep the default-theme.toml if it's source
+# The cached font should be ignored
+SymbolsNerdFont-Regular.ttf
+
+# Output files from testing
+*.svg
+*.png
+tree.svg
+tree.png
+complex_test/
+test_dir/
+
+# Rye
+.rye/

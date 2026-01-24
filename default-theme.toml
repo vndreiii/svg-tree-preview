@@ -1,0 +1,60 @@
+# SVG Tree Theme Configuration
+
+[colors]
+# The main background color of the image
+background = "#282c34"
+
+# Color of the tree structure lines
+lines = "#5c6370"
+
+# Default text color for files
+text_file = "#abb2bf"
+
+# Text color for folders
+text_folder = "#61afef"
+
+# Default color for icons if not specified in [file_colors]
+icon_default = "#abb2bf"
+
+[layout]
+# Height of each row in pixels
+row_height = 30
+
+# Font size in pixels
+font_size = 14
+
+# Padding around the entire tree in pixels
+padding = 40
+
+# Indentation per depth level in pixels
+indent_pixels = 24
+
+[font]
+# Font family string
+family = "monospace"
+# Type: "Mono", "Sans", "Serif", etc. (Optional, appended to family or used as fallback)
+type = "Mono"
+# Thickness: "Regular", "Bold", "Light", or numeric (e.g., 400, 700)
+thickness = "Regular"
+# Optional: Path to the font file (ttf/otf) to embed it. 
+# This ensures it works in PNGs and on other machines.
+# path = "/path/to/font.ttf"
+
+[file_colors]
+# Specific colors for file types (keys match internal type names or extensions)
+folder = "#61afef"
+image = "#c678dd"
+code = "#98c379"
+python = "#e5c07b"
+js = "#e5c07b"
+html = "#e06c75"
+git = "#e06c75"
+hidden = "#5c6370"
+pdf = "#d19a66"
+archive = "#56b6c2" # zip, tar, etc
+audio = "#c678dd"
+video = "#c678dd"
+font = "#d19a66"
+db = "#e06c75"
+exec = "#e06c75" # exe, bin
+text = "#abb2bf"

@@ -1,0 +1,45 @@
+# SVG Tree Theme Configuration
+[colors]
+# The main background color of the image
+background = "#ffffff"
+# Color of the tree structure lines
+lines = "#9ca3af"
+# Default text color for files
+text_file = "#1f2937"
+# Text color for folders
+text_folder = "#2563eb"
+# Default color for icons if not specified in [file_colors]
+icon_default = "#1f2937"
+
+[layout]
+# Height of each row in pixels
+row_height = 30
+# Font size in pixels
+font_size = 14
+# Padding around the entire tree in pixels
+padding = 40
+# Indentation per depth level in pixels
+indent_pixels = 24
+
+[font]
+# Font family string
+family = "VT323"
+
+[file_colors]
+# Specific colors for file types (keys match internal type names or extensions)
+folder = "#2563eb"        # Blue for folders
+image = "#7c3aed"         # Purple for images
+code = "#059669"          # Green for code
+python = "#d97706"        # Amber for Python
+js = "#d97706"            # Amber for JavaScript
+html = "#dc2626"          # Red for HTML
+git = "#dc2626"           # Red for Git
+hidden = "#6b7280"        # Gray for hidden files
+pdf = "#ea580c"           # Orange for PDFs
+archive = "#0891b2"       # Cyan for archives (zip, tar, etc)
+audio = "#7c3aed"         # Purple for audio
+video = "#7c3aed"         # Purple for video
+font = "#ea580c"          # Orange for fonts
+db = "#dc2626"            # Red for databases
+exec = "#dc2626"          # Red for executables (exe, bin)
+text = "#1f2937"          # Dark gray for text files

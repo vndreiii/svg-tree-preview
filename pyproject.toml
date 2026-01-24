@@ -1,0 +1,35 @@
+[project]
+name = "svg-tree"
+version = "0.1.0"
+description = "Generate pretty SVG/PNG directory trees"
+license = { text = "GPL-3.0-only" }
+classifiers = [
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+]
+dependencies = [
+    "svgwrite>=1.4.3",
+    "pathspec>=1.0.3",
+    "cairosvg>=2.8.2",
+    "fonttools>=4.61.1",
+    "requests>=2.32.5",
+    "pyinstaller>=6.18.0",
+]
+readme = "README.md"
+requires-python = ">= 3.8"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.scripts]
+svgtree = "svg_tree.main:main"
+
+[tool.rye]
+managed = true
+dev-dependencies = []
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/svg_tree"]
