@@ -1,8 +1,14 @@
-# SVGTree
+# SVGTreePreview
 
 A beautiful, high-performance CLI tool to generate **SVG** and **PNG** directory trees with Nerd Font icons and comprehensive theming support.
 
+<!--
+Source - https://stackoverflow.com/q
+Posted by zjffdu, modified by community. See post 'Timeline' for change history
+Retrieved 2026-01-24, License - CC BY-SA 4.0
+-->
 
+<img src="file:///home/meh/svg-tree/SVGTreePreview.png" title="" alt="what the project looks like, it shows a file structure" width="642">
 
 ## Features
 
