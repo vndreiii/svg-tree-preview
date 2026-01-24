@@ -8,7 +8,7 @@ classifiers = [
 ]
 dependencies = [
     "svgwrite>=1.4.3",
-    "pathspec>=1.0.3",
+    "pathspec>=0.10.0",
     "cairosvg>=2.7.0",
     "fonttools>=4.50.0",
     "requests>=2.25.0",
