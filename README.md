@@ -22,8 +22,13 @@ Retrieved 2026-01-24, License - CC BY-SA 4.0
 
 ### Prerequisites
 
-- Python 3.8+
-- (Optional) Inkscape for superior PNG quality.
+To build and run `svgtree`, you need the following dependencies. You can find package names for your specific distribution on [Repology](https://repology.org/).
+
+| Dependency | Purpose | Repology Link |
+| :--- | :--- | :--- |
+| **Python 3.8+** | Core runtime | [python](https://repology.org/project/python/versions) |
+| **Cairo** | PNG rendering engine | [cairo](https://repology.org/project/cairo/versions) |
+| **Inkscape** | (Optional) Superior PNG quality | [inkscape](https://repology.org/project/inkscape/versions) |
 
 ### From Source
 
