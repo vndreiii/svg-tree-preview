@@ -1,7 +1,5 @@
 # SVGTreePreview
 
-
-
 <!--
 Source - https://stackoverflow.com/q
 Posted by zjffdu, modified by community. See post 'Timeline' for change history
@@ -20,7 +18,7 @@ Retrieved 2026-01-24, License - CC BY-SA 4.0
 * **Smart PNG Export**: High-quality rasterization using **Inkscape** (preferred) or **CairoSVG** with adjustable scaling (up to 8x).
 * **Modern CLI**: Supports `.gitignore` style patterns for exclusions and respects XDG specifications for config.
 
-## ?š€ Installation
+## Installation
 
 ### Prerequisites
 
@@ -46,7 +44,7 @@ chmod +x install.sh
 5. Deploy the default theme to `~/.config/svgtree/default-theme.toml`.
 6. Create the assets cache directory at `~/.config/svgtree/assets`.
 
-## ?’» Usage
+## Usage
 
 ```bash
 svgtree [ROOT_DIR] [OPTIONS]
@@ -92,7 +90,7 @@ svgtree ~ -o home.svg -d 3 -e ".git, .cache, node_modules" --png -s 4
 svgtree . --theme ~/.config/svgtree/light-theme.toml
 ```
 
-## ?Ž¨ Theming
+## Theming
 
 Themes are managed via TOML files. The tool follows the XDG specification and looks for its default theme at `~/.config/svgtree/default-theme.toml`.
 
