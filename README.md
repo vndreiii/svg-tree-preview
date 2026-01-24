@@ -8,7 +8,7 @@ Posted by zjffdu, modified by community. See post 'Timeline' for change history
 Retrieved 2026-01-24, License - CC BY-SA 4.0
 -->
 
-<img src="file:///home/meh/svg-tree/SVGTreePreview.png" title="" alt="what the project looks like, it shows a file structure" width="642">
+<img src="https://git.killuaa.dev/vndreiii/svg-tree-preview/raw/branch/main/SVGTreePreview.png" title="" alt="what the project looks like, it shows a file structure" width="642">
 
 ## Features
 
