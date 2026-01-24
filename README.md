@@ -1,6 +1,6 @@
 # SVGTreePreview
 
-A beautiful, high-performance CLI tool to generate **SVG** and **PNG** directory trees with Nerd Font icons and comprehensive theming support.
+
 
 <!--
 Source - https://stackoverflow.com/q
@@ -15,14 +15,15 @@ Retrieved 2026-01-24, License - CC BY-SA 4.0
 * **Beautiful Visuals**: Generates clean, scalable SVGs with precise, connected tree lines.
 * **Zero-Config Icons**: Automatically downloads and vectorizes Nerd Font icons (cached in `~/.config/svgtree/assets`)â€”no font installation required for the final viewer.
 * **Custom Theming**: Fully customizable colors, layout, and font properties via TOML.
-*   **Font Embedding**: Embed any TTF/OTF font directly into the SVG for pixel-perfect portability.
-*   **File Preview**: Embed source code highlighting and image previews directly into the tree structure.
-*   **Smart PNG Export**: High-quality rasterization using **Inkscape** (preferred) or **CairoSVG** with adjustable scaling (up to 8x).
-*   **Modern CLI**: Supports `.gitignore` style patterns for exclusions and respects XDG specifications for config.
+* **Font Embedding**: Embed any TTF/OTF font directly into the SVG for pixel-perfect portability.
+* **File Preview**: Embed source code highlighting and image previews directly into the tree structure.
+* **Smart PNG Export**: High-quality rasterization using **Inkscape** (preferred) or **CairoSVG** with adjustable scaling (up to 8x).
+* **Modern CLI**: Supports `.gitignore` style patterns for exclusions and respects XDG specifications for config.
 
-## ðŸš€ Installation
+## ?š€ Installation
 
 ### Prerequisites
+
 - Python 3.8+
 - (Optional) Inkscape for superior PNG quality.
 
@@ -37,6 +38,7 @@ chmod +x install.sh
 ```
 
 **The script will:**
+
 1. Create a temporary virtual environment.
 2. Install all necessary build dependencies.
 3. Bundle `svgtree` into a standalone binary using PyInstaller.
@@ -44,7 +46,7 @@ chmod +x install.sh
 5. Deploy the default theme to `~/.config/svgtree/default-theme.toml`.
 6. Create the assets cache directory at `~/.config/svgtree/assets`.
 
-## ðŸ’» Usage
+## ?’» Usage
 
 ```bash
 svgtree [ROOT_DIR] [OPTIONS]
@@ -52,41 +54,45 @@ svgtree [ROOT_DIR] [OPTIONS]
 
 ### Options
 
-| Short | Long | Description |
-| :--- | :--- | :--- |
-| `-o` | `--output` | Output SVG path (default: `tree.svg`) |
-| `-d` | `--depth` | Max recursion depth (default: 2) |
-| `-e` | `--exclude` | Comma-separated exclude patterns (e.g. `.git, node_modules`) |
-| `-s` | `--size` | PNG scale factor from 1 to 8 (default: 1) |
-| `-p` | `--file-preview` | Patterns to preview (e.g. `*.py, logo.png`) |
-| | `--png` | Generate PNG output instead of SVG |
-| | `--html` | Generate HTML output instead of SVG |
-| | `--theme` | Path to a custom TOML theme file |
-| `-h` | `--help` | Show all available commands |
+| Short | Long             | Description                                                  |
+|:----- |:---------------- |:------------------------------------------------------------ |
+| `-o`  | `--output`       | Output SVG path (default: `tree.svg`)                        |
+| `-d`  | `--depth`        | Max recursion depth (default: 2)                             |
+| `-e`  | `--exclude`      | Comma-separated exclude patterns (e.g. `.git, node_modules`) |
+| `-s`  | `--size`         | PNG scale factor from 1 to 8 (default: 1)                    |
+| `-p`  | `--file-preview` | Patterns to preview (e.g. `*.py, logo.png`)                  |
+|       | `--png`          | Generate PNG output instead of SVG                           |
+|       | `--html`         | Generate HTML output instead of SVG                          |
+|       | `--theme`        | Path to a custom TOML theme file                             |
+| `-h`  | `--help`         | Show all available commands                                  |
 
 ### Examples
 
 **Basic scan of the current directory:**
+
 ```bash
 svgtree .
 ```
 
 **Preview specific files (Images and Code):**
+
 ```bash
 svgtree . --file-preview "*.py, logo.svg, *.png" --png
 ```
 
 **High-resolution 4x PNG with exclusions:**
+
 ```bash
 svgtree ~ -o home.svg -d 3 -e ".git, .cache, node_modules" --png -s 4
 ```
 
 **Using a custom theme:**
+
 ```bash
 svgtree . --theme ~/.config/svgtree/light-theme.toml
 ```
 
-## ðŸŽ¨ Theming
+## ?Ž¨ Theming
 
 Themes are managed via TOML files. The tool follows the XDG specification and looks for its default theme at `~/.config/svgtree/default-theme.toml`.
 
