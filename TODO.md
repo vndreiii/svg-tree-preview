@@ -17,13 +17,15 @@
     - Make folder nodes clickable (collapsible/expandable) using embedded JavaScript in the SVG.
     - *Note: Pure SVG interactivity is complex (manual reflow). Future interactive features should prioritize HTML output.*
 
-- [ ] **HTML Output (`--html`)**
+- [x] **HTML Output (`--html`)**
     - Generate a self-contained HTML file instead of (or in addition to) SVG.
     - **Benefits**:
-        - CSS handles layout reflow automatically (no manual Y calculation).
+        - CSS handles layout reflow automatically.
         - Richer file previews (modals, syntax highlighting libraries).
         - Search/Filter functionality.
-    - **Implementation**: Embed SVG icons, use `<ul>`/`<li>` structure for tree, and simple JS for toggling classes.
+
+- [x] **Exclusive PNG Output (`--png`)**
+    - Now generates only the PNG file (cleaning up the temporary SVG) when the flag is used.
 
 - [ ] **Multiple Output Formats**
     - Add JSON export (`--json`) for use in other tools.

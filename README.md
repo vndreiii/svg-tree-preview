@@ -59,7 +59,8 @@ svgtree [ROOT_DIR] [OPTIONS]
 | `-e` | `--exclude` | Comma-separated exclude patterns (e.g. `.git, node_modules`) |
 | `-s` | `--size` | PNG scale factor from 1 to 8 (default: 1) |
 | `-p` | `--file-preview` | Patterns to preview (e.g. `*.py, logo.png`) |
-| | `--png` | Additionally export to PNG |
+| | `--png` | Generate PNG output instead of SVG |
+| | `--html` | Generate HTML output instead of SVG |
 | | `--theme` | Path to a custom TOML theme file |
 | `-h` | `--help` | Show all available commands |
 
