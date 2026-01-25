@@ -3,6 +3,7 @@ import html
 import base64
 import mimetypes
 import svgwrite
+import re
 from PIL import Image
 from pygments import highlight
 from pygments.lexers import get_lexer_for_filename, TextLexer
@@ -18,14 +19,67 @@ mimetypes.add_type("audio/mpeg", ".mp3")
 mimetypes.add_type("audio/wav", ".wav")
 
 # Configuration for previews
-PREVIEW_WIDTH = 400 # Max container width
 CODE_FONT_SIZE = 12
 LINE_HEIGHT = 16
-MAX_LINES = 20
+MAX_PREVIEW_SIZE = 999 * 1024 * 1024 
+
+# XML-compatible character filter
+_RE_XML_ILLEGAL = re.compile(
+    r'([\u0000-\u0008\u000b-\u000c\u000e-\u001f\ufffe-\uffff])'
+    r'|'
+    r'([%s-%s])' % (chr(0xd800), chr(0xdbff)) +
+    r'|'
+    r'([%s-%s])' % (chr(0xdc00), chr(0xdfff))
+)
+
+def sanitize_text(text: str) -> str:
+    """Removes control characters that are invalid in XML/SVG."""
+    if not isinstance(text, str):
+        text = str(text)
+    return _RE_XML_ILLEGAL.sub('', text)
+
+def _get_token_lines(tokens):
+    """
+    Processes a stream of (ttype, value) tokens and groups them into lines.
+    Handles internal newlines in token values and flattens any nested structures.
+    """
+    lines = []
+    current_line = []
+    
+    def process_token(ttype, value):
+        nonlocal current_line
+        if isinstance(value, (list, tuple)):
+            for sub_t in value:
+                if isinstance(sub_t, (list, tuple)) and len(sub_t) == 2:
+                    process_token(sub_t[0], sub_t[1])
+            return
+
+        val_str = str(value)
+        if '\n' in val_str:
+            parts = val_str.split('\n')
+            for i, part in enumerate(parts):
+                if part:
+                    current_line.append((ttype, part))
+                if i < len(parts) - 1:
+                    lines.append(current_line)
+                    current_line = []
+        else:
+            if val_str:
+                current_line.append((ttype, val_str))
+
+    for t in tokens:
+        if isinstance(t, (list, tuple)) and len(t) == 2:
+            process_token(t[0], t[1])
+            
+    if current_line:
+        lines.append(current_line)
+    return lines
 
 def is_binary(file_path):
     """Check if file is binary by looking for null bytes."""
     try:
+        if os.path.getsize(file_path) == 0:
+            return False
         with open(file_path, 'rb') as f:
             chunk = f.read(8192)
             return b'\0' in chunk
@@ -33,197 +87,177 @@ def is_binary(file_path):
         return True
 
 def _read_b64(file_path):
+    if os.path.getsize(file_path) > MAX_PREVIEW_SIZE:
+        raise ValueError(f"File too large for preview ({os.path.getsize(file_path)} bytes)")
     with open(file_path, "rb") as f:
         return base64.b64encode(f.read()).decode("utf-8")
 
-def get_file_content_preview(file_path: str) -> svgwrite.container.Group:
-    """
-    Generates an SVG Group containing the preview of the file.
-    """
-    mime_type, _ = mimetypes.guess_type(file_path)
-    ext = os.path.splitext(file_path)[1].lower()
-    
-    # 1. Image Preview
-    if mime_type and (mime_type.startswith('image/') or ext in ('.jxl', '.webp')):
-        return _generate_image_preview(file_path)
-        
-    # 2. Treat as Code (Force .ts to code)
-    if ext == '.ts':
-        return _generate_code_preview(file_path)
-
-    # 3. Audio/Video (Placeholder for SVG)
-    if mime_type and (mime_type.startswith('video/') or mime_type.startswith('audio/')):
-        return _generate_placeholder_preview(file_path, "Media File")
-
-    # 4. Binary Check
-    if is_binary(file_path):
-        return _generate_placeholder_preview(file_path, "Binary File")
-    
-    # 5. Code/Text Preview
-    return _generate_code_preview(file_path)
-
-def get_html_preview(file_path: str) -> str:
-    """
-    Generates an HTML snippet previewing the file.
-    """
-    mime_type, _ = mimetypes.guess_type(file_path)
-    ext = os.path.splitext(file_path)[1].lower()
-    
+def _read_text_preview(file_path: str) -> str:
+    """Reads the entire text file content within MAX_PREVIEW_SIZE."""
     try:
-        # 1. Image
-        if mime_type and (mime_type.startswith('image/') or ext in ('.jxl', '.webp')):
-            data = _read_b64(file_path)
-            if not mime_type: mime_type = "image/png"
-            return f'<div class="preview-image"><img src="data:{mime_type};base64,{data}" style="max-width: 100%; max-height: 300px; border-radius: 5px;"></div>'
-
-        # 2. Force .ts to Code
-        if ext == '.ts':
-            pass # Continue to code section below
-        
-        # 3. Video
-        elif mime_type and mime_type.startswith('video/'):
-            data = _read_b64(file_path)
-            return f'<div class="preview-media"><video controls src="data:{mime_type};base64,{data}" style="max-width: 100%; max-height: 300px;"></video></div>'
-
-        # 4. Audio
-        elif mime_type and mime_type.startswith('audio/'):
-            data = _read_b64(file_path)
-            return f'<div class="preview-media"><audio controls src="data:{mime_type};base64,{data}"></audio></div>'
-
-        # 5. Binary Check
-        elif is_binary(file_path):
-            return f'<div class="preview-error">Binary File ({os.path.getsize(file_path)} bytes)</div>'
-
-        # 6. Code
+        if os.path.getsize(file_path) > MAX_PREVIEW_SIZE:
+            return ""
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-            code = "".join(f.readlines()[:MAX_LINES])
-            
+            return sanitize_text(f.read())
+    except Exception:
+        return ""
+
+def get_preview_data(file_path: str, mode: str = 'svg'):
+    """
+    Parallel-friendly function that returns picklable data for a preview.
+    mode: 'svg' or 'html'
+    """
+    try:
+        if mode == 'html':
+            return get_html_preview(file_path)
+        
+        # SVG Mode: Return structured data
+        mime_type, _ = mimetypes.guess_type(file_path)
+        ext = os.path.splitext(file_path)[1].lower()
+        file_size = os.path.getsize(file_path)
+
+        # 1. Size Check
+        if file_size > MAX_PREVIEW_SIZE:
+            return {'type': 'placeholder', 'text': f"Large {mime_type or 'File'}", 'width': 150, 'height': 30}
+
+        # 2. Image
+        if mime_type and (mime_type.startswith('image/') or ext in ('.jxl', '.webp')):
+            try:
+                with Image.open(file_path) as img:
+                    w, h = img.size
+                return {
+                    'type': 'image',
+                    'width': w,
+                    'height': h,
+                    'data': _read_b64(file_path),
+                    'mime': mime_type or "image/png"
+                }
+            except:
+                pass
+
+        # 3. Media Placeholder
+        if mime_type and (mime_type.startswith('video/') or mime_type.startswith('audio/')):
+            return {'type': 'placeholder', 'text': "Media File", 'width': 120, 'height': 30}
+
+        # 4. Binary Check
+        if is_binary(file_path):
+            return {'type': 'placeholder', 'text': "Binary File", 'width': 120, 'height': 30}
+
+        # 5. Code/Text
+        code = _read_text_preview(file_path)
+        if not code:
+            return None
+
         try:
             lexer = get_lexer_for_filename(file_path)
         except:
             lexer = TextLexer()
+
+        style = get_style_by_name('monokai')
+        try:
+            tokens = list(lexer.get_tokens(code))
+        except:
+            tokens = list(TextLexer().get_tokens(code))
+
+        token_lines = _get_token_lines(tokens)
+        
+        # Prepare structured lines
+        render_lines = []
+        max_w = 0
+        for row in token_lines:
+            line_parts = []
+            line_w = 0
+            for ttype, value in row:
+                clean_val = sanitize_text(value)
+                try:
+                    style_dict = style.style_for_token(ttype)
+                    color = '#' + (style_dict['color'] or 'abb2bf')
+                except:
+                    color = '#abb2bf'
+                
+                line_parts.append((color, clean_val))
+                line_w += len(clean_val) * (CODE_FONT_SIZE * 0.72)
             
+            render_lines.append(line_parts)
+            max_w = max(max_w, line_w)
+
+        return {
+            'type': 'code',
+            'lines': render_lines,
+            'width': max_w + 20,
+            'height': (len(render_lines) * LINE_HEIGHT) + 10
+        }
+
+    except Exception as e:
+        return {'type': 'placeholder', 'text': f"Error: {sanitize_text(str(e))}", 'width': 200, 'height': 30}
+
+def get_html_preview(file_path: str) -> str:
+    mime_type, _ = mimetypes.guess_type(file_path)
+    ext = os.path.splitext(file_path)[1].lower()
+    try:
+        file_size = os.path.getsize(file_path)
+        if mime_type and (mime_type.startswith('image/') or ext in ('.jxl', '.webp')):
+            if file_size > MAX_PREVIEW_SIZE:
+                return f'<div class="preview-error">Image too large ({file_size} bytes)</div>'
+            data = _read_b64(file_path)
+            if not mime_type: mime_type = "image/png"
+            return f'<div class="preview-image"><img src="data:{mime_type};base64,{data}" style="max-width: 100%; border-radius: 5px;"></div>'
+        
+        if ext == '.ts': pass
+        elif mime_type and mime_type.startswith('video/'):
+            if file_size > MAX_PREVIEW_SIZE:
+                return f'<div class="preview-error">Video too large ({file_size} bytes)</div>'
+            data = _read_b64(file_path)
+            return f'<div class="preview-media"><video controls src="data:{mime_type};base64,{data}" style="max-width: 100%;"></video></div>'
+        elif mime_type and mime_type.startswith('audio/'):
+            if file_size > MAX_PREVIEW_SIZE:
+                return f'<div class="preview-error">Audio too large ({file_size} bytes)</div>'
+            data = _read_b64(file_path)
+            return f'<div class="preview-media"><audio controls src="data:{mime_type};base64,{data}"></audio></div>'
+        elif is_binary(file_path):
+            return f'<div class="preview-error">Binary File ({file_size} bytes)</div>'
+        
+        code = _read_text_preview(file_path)
+        if not code: return ""
+        try: lexer = get_lexer_for_filename(file_path)
+        except: lexer = TextLexer()
         formatter = HtmlFormatter(style='monokai', noclasses=True, wrapcode=True)
         return f'<div class="preview-code">{highlight(code, lexer, formatter)}</div>'
-        
     except Exception as e:
         return f'<div class="preview-error">Error: {html.escape(str(e))}</div>'
 
-def _generate_placeholder_preview(file_path: str, text: str) -> svgwrite.container.Group:
+def build_svg_preview_from_data(data: dict) -> svgwrite.container.Group:
+    """Reconstructs an SVG Group from pre-calculated data."""
     group = svgwrite.container.Group()
-    font_size = 12
-    char_width = 8
-    padding = 10
-    box_w = (len(text) * char_width) + (padding * 2.5)
-    box_h = 30
-    
-    rect = svgwrite.shapes.Rect(size=(box_w, box_h), fill="#21252b", stroke="#3e4451", rx=4, ry=4)
-    rect['width'] = box_w
-    rect['height'] = box_h
-    group.add(rect)
-    
-    txt = svgwrite.text.Text(text, insert=(padding, 18), fill="#abb2bf", font_family="monospace", font_size=font_size)
-    group.add(txt)
-    return group
+    if not data:
+        return group
 
-def _generate_image_preview(file_path: str) -> svgwrite.container.Group:
-    group = svgwrite.container.Group()
-    try:
-        try:
-            with Image.open(file_path) as img:
-                orig_w, orig_h = img.size
-        except Exception:
-            orig_w, orig_h = 100, 100
-            
-        max_w, max_h = 350, 250
-        ratio = min(1.0, min(max_w / orig_w, max_h / orig_h))
-        
-        new_w = int(orig_w * ratio)
-        new_h = int(orig_h * ratio)
-        
-        data = _read_b64(file_path)
-        
-        mime_type, _ = mimetypes.guess_type(file_path)
-        if not mime_type: 
-            mime_type = "image/png"
-            
-        uri = f"data:{mime_type};base64,{data}"
-        
-        padding = 10
-        box_w = new_w + (padding * 2)
-        box_h = new_h + (padding * 2)
-        
-        rect = svgwrite.shapes.Rect(size=(box_w, box_h), fill="#21252b", stroke="#3e4451", rx=4, ry=4)
-        group.add(rect)
-        
-        img_node = svgwrite.image.Image(href=uri, insert=(padding, padding), size=(new_w, new_h))
+    box_w, box_h = data['width'], data['height']
+    
+    # Background
+    if data['type'] == 'code':
+        bg = svgwrite.shapes.Rect(size=(box_w, box_h), fill="#282c34", stroke="#3e4451", rx=5, ry=5)
+    else:
+        bg = svgwrite.shapes.Rect(size=(box_w, box_h), fill="#21252b", stroke="#3e4451", rx=4, ry=4)
+    group.add(bg)
+
+    if data['type'] == 'placeholder':
+        txt = svgwrite.text.Text(data['text'], insert=(10, 18), fill="#abb2bf", font_family="monospace", font_size=12)
+        group.add(txt)
+    
+    elif data['type'] == 'image':
+        uri = f"data:{data['mime']};base64,{data['data']}"
+        img_node = svgwrite.image.Image(href=uri, insert=(10, 10), size=(data['width']-20, data['height']-20))
         group.add(img_node)
         
-    except Exception as e:
-        group.add(svgwrite.text.Text(f"Error: {e}", fill="red", font_size=10, insert=(0, 10)))
-        rect = svgwrite.shapes.Rect(size=(200, 20), fill="none")
-        rect['height'] = 20
-        group.elements.insert(0, rect)
-        
-    return group
-
-def _generate_code_preview(file_path: str) -> svgwrite.container.Group:
-    group = svgwrite.container.Group()
-    bg = svgwrite.shapes.Rect(fill="#282c34", stroke="#3e4451", rx=5, ry=5)
-    group.add(bg)
-    
-    try:
-        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-            code = "".join(f.readlines()[:MAX_LINES])
-            
-        try:
-            lexer = get_lexer_for_filename(file_path)
-        except:
-            lexer = TextLexer()
-            
+    elif data['type'] == 'code':
         y = LINE_HEIGHT
-        x = 10
-        style = get_style_by_name('monokai')
-        text_group = svgwrite.container.Group()
-        
-        lines = code.splitlines()
-        max_width = 0
-        
-        for i, line in enumerate(lines):
-            tokens = lexer.get_tokens(line)
-            text_elem = svgwrite.text.Text("", insert=(x, y), 
-                                           font_family="monospace", font_size=CODE_FONT_SIZE)
+        for line in data['lines']:
+            text_elem = svgwrite.text.Text("", insert=(10, y), font_family="monospace", font_size=CODE_FONT_SIZE)
             text_elem['xml:space'] = 'preserve'
-            
-            for ttype, value in tokens:
-                color = '#' + (style.style_for_token(ttype)['color'] or 'abb2bf')
-                tspan = svgwrite.text.TSpan(value, fill=color)
-                text_elem.add(tspan)
-                
-            text_group.add(text_elem)
-            
-            line_len = len(line) * (CODE_FONT_SIZE * 0.7)
-            if line_len > max_width:
-                max_width = line_len
-            
+            for color, val in line:
+                text_elem.add(svgwrite.text.TSpan(val, fill=color))
+            group.add(text_elem)
             y += LINE_HEIGHT
             
-        box_w = max(max_width + 30, 200)
-        box_h = y + 10
-        bg['width'] = box_w
-        bg['height'] = box_h
-        
-        clip_id = f"clip_{os.urandom(4).hex()}"
-        clip = svgwrite.masking.ClipPath(id=clip_id)
-        clip.add(svgwrite.shapes.Rect(size=(box_w, box_h), rx=5, ry=5))
-        group.add(clip)
-        
-        text_group['clip-path'] = f"url(#{clip_id})"
-        group.add(text_group)
-        
-    except Exception as e:
-        group.add(svgwrite.text.Text(f"Error: {e}", fill="red", insert=(10, 20)))
-        bg['width'] = 200
-        bg['height'] = 40
-        
     return group

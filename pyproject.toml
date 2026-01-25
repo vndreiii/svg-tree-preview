@@ -28,7 +28,9 @@ svgtree = "svg_tree.main:main"
 
 [tool.rye]
 managed = true
-dev-dependencies = []
+dev-dependencies = [
+    "shiv>=1.0.8",
+]
 
 [tool.hatch.metadata]
 allow-direct-references = true

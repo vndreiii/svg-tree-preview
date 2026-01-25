@@ -37,6 +37,13 @@ def build_tree(
     filtered_entries = []
     
     for entry in raw_entries:
+        # Only process regular files and directories (skips sockets, pipes, etc.)
+        try:
+            if not (entry.is_file() or entry.is_dir()):
+                continue
+        except OSError:
+            continue
+
         if spec:
              if spec.match_file(entry.path):
                  continue

@@ -49,15 +49,27 @@ def main():
     
     nodes = build_tree(root, args.depth, spec, on_progress=on_progress)
     
-    # Finalize progress bar
+    # Finalize scanning progress bar
     sys.stdout.write(f"\rScanning {root} (depth={args.depth})... Done! ({count} items found)   \n")
+    sys.stdout.flush()
+
+    # Reuse spinner for rendering
+    render_count = 0
+    def on_render_progress():
+        nonlocal render_count
+        render_count += 1
+        if render_count % 5 == 0:
+            sys.stdout.write(f"\rGenerating output... {next(spinner_chars)} ({render_count} steps)")
+            sys.stdout.flush()
+
+    sys.stdout.write(f"Generating output... {next(spinner_chars)}")
     sys.stdout.flush()
     
     if args.html:
         out = args.output
         if out.endswith('.svg') or out.endswith('.png'):
             out = os.path.splitext(out)[0] + ".html"
-        generate_html(root, out, nodes, theme, preview_patterns=args.file_preview)
+        generate_html(root, out, nodes, theme, preview_patterns=args.file_preview, on_progress=on_render_progress)
         
     elif args.png:
         # Handle PNG output exclusively
@@ -68,8 +80,8 @@ def main():
         # Create temp SVG path
         svg_tmp = final_out + ".tmp.svg"
         
-        # Generate SVG (silently if possible, but generate_svg prints)
-        generate_svg(root, svg_tmp, nodes, theme, save_png=False, preview_patterns=args.file_preview)
+        # Generate SVG
+        generate_svg(root, svg_tmp, nodes, theme, save_png=False, preview_patterns=args.file_preview, on_progress=on_render_progress)
         
         # Convert
         export_png(svg_tmp, final_out, args.size)
@@ -80,7 +92,10 @@ def main():
             
     else:
         # Standard SVG output
-        generate_svg(root, args.output, nodes, theme, save_png=False, preview_patterns=args.file_preview)
+        generate_svg(root, args.output, nodes, theme, save_png=False, preview_patterns=args.file_preview, on_progress=on_render_progress)
+
+    sys.stdout.write("\rGenerating output... Done!                                         \n")
+    sys.stdout.flush()
 
 if __name__ == "__main__":
     main()
