@@ -26,9 +26,8 @@ build-backend = "hatchling.build"
 [project.scripts]
 svgtree = "svg_tree.main:main"
 
-[tool.rye]
-managed = true
-dev-dependencies = [
+[dependency-groups]
+dev = [
     "shiv>=1.0.8",
 ]
 

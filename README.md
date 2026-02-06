@@ -33,7 +33,7 @@ To build and run `svgtree`, you need the following dependencies. You can find pa
 ### From Source
 
 1. Clone the repository.
-2. Run the self-contained installation script:
+2. Run the self-contained installation script (requires [uv](https://docs.astral.sh/uv/)):
 
 ```bash
 chmod +x install.sh
@@ -42,9 +42,9 @@ chmod +x install.sh
 
 **The script will:**
 
-1. Create a temporary virtual environment.
-2. Install all necessary build dependencies.
-3. Bundle `svgtree` into a standalone binary using PyInstaller.
+1. Use `uv` to manage dependencies.
+2. Build the project wheel.
+3. Bundle `svgtree` into a standalone binary using `shiv`.
 4. Install the binary to `~/.local/bin/`.
 5. Deploy the default theme to `~/.config/svgtree/default-theme.toml`.
 6. Create the assets cache directory at `~/.config/svgtree/assets`.

@@ -7,14 +7,14 @@ cd "$CDIR"
 
 echo "Detected System: $(uname -s)"
 
-# Check for rye
-if ! command -v rye &> /dev/null; then
-    echo "Error: rye is not installed. Please install it from https://rye-up.com/"
+# Check for uv
+if ! command -v uv &> /dev/null; then
+    echo "Error: uv is not installed. Please install it from https://docs.astral.sh/uv/"
     exit 1
 fi
 
-echo "Building wheel with Rye..."
-rye build --wheel --clean
+echo "Building wheel with uv..."
+uv build --wheel --clear
 
 echo "Packaging with Shiv..."
 # Shiv creates a zipapp that includes all dependencies.
@@ -22,7 +22,7 @@ echo "Packaging with Shiv..."
 # -o: Output file
 # --compressed: Use compression
 mkdir -p dist
-rye run shiv --compressed -e svg_tree.main:main -o dist/svgtree .
+uv run shiv --compressed -e svg_tree.main:main -o dist/svgtree .
 
 echo "Installing binary..."
 BIN_DIR="${XDG_BIN_HOME:-$HOME/.local/bin}"

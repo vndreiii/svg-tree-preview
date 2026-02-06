@@ -27,7 +27,7 @@ MAX_PREVIEW_SIZE = 999 * 1024 * 1024
 _RE_XML_ILLEGAL = re.compile(
     r'([\u0000-\u0008\u000b-\u000c\u000e-\u001f\ufffe-\uffff])'
     r'|'
-    r'([%s-%s])' % (chr(0xd800), chr(0xdbff)) +
+    r'([%s-%s])' % (chr(0xd800), chr(0xdbff)) + 
     r'|'
     r'([%s-%s])' % (chr(0xdc00), chr(0xdfff))
 )
@@ -87,8 +87,6 @@ def is_binary(file_path):
         return True
 
 def _read_b64(file_path):
-    if os.path.getsize(file_path) > MAX_PREVIEW_SIZE:
-        raise ValueError(f"File too large for preview ({os.path.getsize(file_path)} bytes)")
     with open(file_path, "rb") as f:
         return base64.b64encode(f.read()).decode("utf-8")
 
@@ -116,11 +114,7 @@ def get_preview_data(file_path: str, mode: str = 'svg'):
         ext = os.path.splitext(file_path)[1].lower()
         file_size = os.path.getsize(file_path)
 
-        # 1. Size Check
-        if file_size > MAX_PREVIEW_SIZE:
-            return {'type': 'placeholder', 'text': f"Large {mime_type or 'File'}", 'width': 150, 'height': 30}
-
-        # 2. Image
+        # 1. Image (No size limit)
         if mime_type and (mime_type.startswith('image/') or ext in ('.jxl', '.webp')):
             try:
                 with Image.open(file_path) as img:
@@ -134,6 +128,10 @@ def get_preview_data(file_path: str, mode: str = 'svg'):
                 }
             except:
                 pass
+
+        # 2. Size Check for other types
+        if file_size > MAX_PREVIEW_SIZE:
+            return {'type': 'placeholder', 'text': f"Large {mime_type or 'File'}", 'width': 150, 'height': 30}
 
         # 3. Media Placeholder
         if mime_type and (mime_type.startswith('video/') or mime_type.startswith('audio/')):
@@ -197,8 +195,7 @@ def get_html_preview(file_path: str) -> str:
     try:
         file_size = os.path.getsize(file_path)
         if mime_type and (mime_type.startswith('image/') or ext in ('.jxl', '.webp')):
-            if file_size > MAX_PREVIEW_SIZE:
-                return f'<div class="preview-error">Image too large ({file_size} bytes)</div>'
+            # No size limit for images here either
             data = _read_b64(file_path)
             if not mime_type: mime_type = "image/png"
             return f'<div class="preview-image"><img src="data:{mime_type};base64,{data}" style="max-width: 100%; border-radius: 5px;"></div>'
