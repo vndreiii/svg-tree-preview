@@ -18,11 +18,14 @@ uv build --wheel --clear
 
 echo "Packaging with Shiv..."
 # Shiv creates a zipapp that includes all dependencies.
-# -e: Entry point
-# -o: Output file
-# --compressed: Use compression
+# IMPORTANT: We use the system's python3 explicitly for the build and as the target
+# interpreter. This ensures that C extensions (like Pillow/PIL) are compiled for 
+# the same Python version that will run the binary on this system (e.g., Python 3.14).
+# Using uv's default managed Python (e.g., 3.12) would result in 'ImportError' 
+# when the system's python3 tries to load those incompatible shared objects.
 mkdir -p dist
-uv run shiv --compressed -e svg_tree.main:main -o dist/svgtree .
+SYSTEM_PYTHON=$(which python3)
+uv run --python "$SYSTEM_PYTHON" shiv --compressed -e svg_tree.main:main -o dist/svgtree .
 
 echo "Installing binary..."
 BIN_DIR="${XDG_BIN_HOME:-$HOME/.local/bin}"

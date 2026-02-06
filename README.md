@@ -44,7 +44,7 @@ chmod +x install.sh
 
 1. Use `uv` to manage dependencies.
 2. Build the project wheel.
-3. Bundle `svgtree` into a standalone binary using `shiv`.
+3. Bundle `svgtree` into a standalone binary using `shiv`, targeting the system's `python3` for maximum compatibility with C extensions (like Pillow).
 4. Install the binary to `~/.local/bin/`.
 5. Deploy the default theme to `~/.config/svgtree/default-theme.toml`.
 6. Create the assets cache directory at `~/.config/svgtree/assets`.
